@@ -60,49 +60,114 @@ const MonthTimeTable = ({ selectedView }: TimeTableProps) => {
         return dates;
     };
 
+    // const fetchSchedule = async () => {
+    //     setLoading(true);
+    //     const res = await getScheduleTimeTableStudentAPI();
+
+    //     if (res && res.data) {
+    //         const data = res.data;
+    //         const formattedItems = data.reduce((acc: IFormattedItems, schedule: any) => {
+    //             const dateRange = generateDateRange(schedule.startDate, schedule.endDate);
+
+    //             dateRange.forEach((date) => {
+    //                 if (!acc[date]) {
+    //                     acc[date] = [];
+    //                 }
+
+    //                 acc[date].push({
+    //                     subjectName: schedule.subject.name,
+    //                     roomName: schedule.room.name,
+    //                     time: `${schedule.startTime} - ${schedule.endTime}`,
+    //                     teacherName: schedule.teacher.name,
+    //                 });
+    //             });
+
+    //             return acc;
+    //         }, {});
+
+    //         setItems(formattedItems);
+
+    //         // Prepare marked dates
+    //         const newMarkedDates = Object.keys(formattedItems).reduce((acc: IMarkedDates, date) => {
+    //             acc[date] = { marked: true, dotColor: '#FFD700' };
+    //             return acc;
+    //         }, {});
+
+    //         // Add the selected date styling
+    //         newMarkedDates[currentDay] = {
+    //             ...newMarkedDates[currentDay],
+    //             selected: true,
+    //             selectedColor: '#4285F4',
+    //         };
+
+    //         setMarkedDates(newMarkedDates);
+    //     }
+    //     setLoading(false);
+    // };
     const fetchSchedule = async () => {
         setLoading(true);
-        const res = await getScheduleTimeTableStudentAPI();
 
-        if (res && res.data) {
-            const data = res.data;
-            const formattedItems = data.reduce((acc: IFormattedItems, schedule: any) => {
-                const dateRange = generateDateRange(schedule.startDate, schedule.endDate);
+        try {
+            const res = await getScheduleTimeTableStudentAPI();
 
-                dateRange.forEach((date) => {
-                    if (!acc[date]) {
-                        acc[date] = [];
-                    }
+            if (res && res.data) {
+                const data = res.data;
 
-                    acc[date].push({
-                        subjectName: schedule.subject.name,
-                        roomName: schedule.room.name,
-                        time: `${schedule.startTime} - ${schedule.endTime}`,
-                        teacherName: schedule.teacher.name,
+                // Transform data to Agenda format
+                const formattedItems = data.reduce((acc: IFormattedItems, schedule: any) => {
+                    const dateRange = generateDateRange(schedule.startDate, schedule.endDate);
+
+                    dateRange.forEach((date) => {
+                        const dayOfWeek = dayjs(date).day(); // Get the day of the week (0: Sunday, ..., 6: Saturday)
+
+                        // Ensure the day matches `daysOfWeek` before adding
+                        if (schedule.daysOfWeek.some((day: { id: number }) => day.id === dayOfWeek)) {
+                            if (!acc[date]) {
+                                acc[date] = [];
+                            }
+
+                            acc[date].push({
+                                subjectName: schedule.subject.name,
+                                roomName: schedule.room.name,
+                                time: `${schedule.startTime} - ${schedule.endTime}`,
+                                teacherName: schedule.teacher.name,
+                            });
+                        }
                     });
-                });
 
-                return acc;
-            }, {});
+                    return acc;
+                }, {});
 
-            setItems(formattedItems);
+                // Filter out dates without schedules
+                const filteredItems = Object.keys(formattedItems)
+                    .filter(date => formattedItems[date].length > 0)
+                    .reduce((acc: IFormattedItems, date) => {
+                        acc[date] = formattedItems[date];
+                        return acc;
+                    }, {});
 
-            // Prepare marked dates
-            const newMarkedDates = Object.keys(formattedItems).reduce((acc: IMarkedDates, date) => {
-                acc[date] = { marked: true, dotColor: '#FFD700' };
-                return acc;
-            }, {});
+                setItems(filteredItems);
 
-            // Add the selected date styling
-            newMarkedDates[currentDay] = {
-                ...newMarkedDates[currentDay],
-                selected: true,
-                selectedColor: '#4285F4',
-            };
+                // Prepare marked dates only for dates with schedules
+                const newMarkedDates = Object.keys(filteredItems).reduce((acc: IMarkedDates, date) => {
+                    acc[date] = { marked: true, dotColor: '#FFD700' };
+                    return acc;
+                }, {});
 
-            setMarkedDates(newMarkedDates);
+                // Add the selected date styling
+                newMarkedDates[currentDay] = {
+                    ...newMarkedDates[currentDay],
+                    selected: true,
+                    selectedColor: '#4285F4',
+                };
+
+                setMarkedDates(newMarkedDates);
+            }
+        } catch (error) {
+            console.error('Failed to fetch schedule:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {

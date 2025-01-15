@@ -24,32 +24,47 @@ export default function TimeTable() {
         // Fetch API
         fetchSchedule();
     }, []);
+    
     const fetchSchedule = async () => {
         const res = await getScheduleTimeTableStudentAPI();
 
         if (res && res.data) {
-            const data = await res.data
+            const data = await res.data;
+
             // Transform data to Agenda format
             const formattedItems = data.reduce((acc: any, schedule: ISchedule) => {
                 const dateRange = generateDateRange(schedule.startDate, schedule.endDate);
 
                 dateRange.forEach(date => {
-                    if (!acc[date]) {
-                        acc[date] = [];
-                    }
+                    const dayOfWeek = dayjs(date).day(); // Get the day of the week (0: Sunday, ..., 6: Saturday)
 
-                    acc[date].push({
-                        subjectName: `${schedule.subject.name}`,
-                        roomName: `${schedule.room.name}`,
-                        time: `${schedule.startTime} - ${schedule.endTime}`,
-                        teacherName: `${schedule.teacher.name}`,
-                    });
+                    // Check if the dayOfWeek matches schedule.daysOfWeek
+                    if (schedule.daysOfWeek.some(day => day.id === dayOfWeek)) { // Assuming `daysOfWeek` contains { id, name }
+                        if (!acc[date]) {
+                            acc[date] = [];
+                        }
+
+                        acc[date].push({
+                            subjectName: `${schedule.subject.name}`,
+                            roomName: `${schedule.room.name}`,
+                            time: `${schedule.startTime} - ${schedule.endTime}`,
+                            teacherName: `${schedule.teacher.name}`,
+                        });
+                    }
                 });
 
                 return acc;
             }, {});
 
-            setItems(formattedItems);
+            // Filter out empty dates
+            const filteredItems = Object.keys(formattedItems)
+                .filter(date => formattedItems[date].length > 0)
+                .reduce((acc :any, date) => {
+                    acc[date] = formattedItems[date];
+                    return acc;
+                }, {});
+
+            setItems(filteredItems);
         }
     };
 
